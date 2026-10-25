@@ -1,0 +1,112 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<MetaDataObject
+    xmlns="http://v8.1c.ru/8.3/MDClasses"
+    xmlns:app="http://v8.1c.ru/8.2/managed-application/core"
+    xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config"
+    xmlns:cmi="http://v8.1c.ru/8.2/managed-application/cmi"
+    xmlns:ent="http://v8.1c.ru/8.1/data/enterprise"
+    xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform"
+    xmlns:style="http://v8.1c.ru/8.1/data/ui/style"
+    xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system"
+    xmlns:v8="http://v8.1c.ru/8.1/data/core"
+    xmlns:v8ui="http://v8.1c.ru/8.1/data/ui"
+    xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web"
+    xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows"
+    xmlns:xen="http://v8.1c.ru/8.3/xcf/enums"
+    xmlns:xpr="http://v8.1c.ru/8.3/xcf/predef"
+    xmlns:xr="http://v8.1c.ru/8.3/xcf/readable"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    version="2.20"
+>
+	<Catalog uuid="b90ede4f-8eb3-47e6-ae4b-c9998a93696b">
+		<InternalInfo>
+			<xr:GeneratedType name="CatalogObject.ПустойСправочник" category="Object">
+				<xr:TypeId>303e0944-8daf-4e77-9d8d-d53ab28b06a7</xr:TypeId>
+				<xr:ValueId>7491dca0-5033-40b5-9473-7605eaf2f75b</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CatalogRef.ПустойСправочник" category="Ref">
+				<xr:TypeId>f680a82b-2858-47a4-a12b-ec539149685c</xr:TypeId>
+				<xr:ValueId>e3c230c0-410b-4d4d-a8c5-93eacff443be</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CatalogSelection.ПустойСправочник" category="Selection">
+				<xr:TypeId>9ca76327-d4ed-43d7-b409-66ab866de800</xr:TypeId>
+				<xr:ValueId>9c04d0ae-04bb-4523-b437-dab24361249f</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CatalogList.ПустойСправочник" category="List">
+				<xr:TypeId>65fbeed8-1dc1-4259-8f43-d172b75be72d</xr:TypeId>
+				<xr:ValueId>91b478d2-73ee-475a-bdff-34e446b9e4e1</xr:ValueId>
+			</xr:GeneratedType>
+			<xr:GeneratedType name="CatalogManager.ПустойСправочник" category="Manager">
+				<xr:TypeId>ff6ab356-2bf2-4b9b-9d32-270c4bd29d82</xr:TypeId>
+				<xr:ValueId>7762af8b-9fb0-48b2-9264-6b2899b0f5c4</xr:ValueId>
+			</xr:GeneratedType>
+		</InternalInfo>
+		<Properties>
+			<Name>ПустойСправочник</Name>
+			<Synonym>
+				<v8:item>
+					<v8:lang>ru</v8:lang>
+					<v8:content>Пустой справочник</v8:content>
+				</v8:item>
+			</Synonym>
+			<Comment />
+			<Hierarchical>false</Hierarchical>
+			<HierarchyType>HierarchyFoldersAndItems</HierarchyType>
+			<LimitLevelCount>false</LimitLevelCount>
+			<LevelCount>2</LevelCount>
+			<FoldersOnTop>true</FoldersOnTop>
+			<UseStandardCommands>true</UseStandardCommands>
+			<Owners />
+			<SubordinationUse>ToItems</SubordinationUse>
+			<CodeLength>9</CodeLength>
+			<DescriptionLength>25</DescriptionLength>
+			<CodeType>String</CodeType>
+			<CodeAllowedLength>Variable</CodeAllowedLength>
+			<CodeSeries>WholeCatalog</CodeSeries>
+			<CheckUnique>true</CheckUnique>
+			<Autonumbering>true</Autonumbering>
+			<DefaultPresentation>AsDescription</DefaultPresentation>
+			<Characteristics />
+			<PredefinedDataUpdate>Auto</PredefinedDataUpdate>
+			<EditType>InDialog</EditType>
+			<QuickChoice>false</QuickChoice>
+			<ChoiceMode>BothWays</ChoiceMode>
+			<InputByString>
+				<xr:Field>Catalog.ПустойСправочник.StandardAttribute.Description</xr:Field>
+				<xr:Field>Catalog.ПустойСправочник.StandardAttribute.Code</xr:Field>
+			</InputByString>
+			<SearchStringModeOnInputByString>Begin</SearchStringModeOnInputByString>
+			<FullTextSearchOnInputByString>DontUse</FullTextSearchOnInputByString>
+			<ChoiceDataGetModeOnInputByString>Directly</ChoiceDataGetModeOnInputByString>
+			<DefaultObjectForm />
+			<DefaultFolderForm />
+			<DefaultListForm />
+			<DefaultChoiceForm />
+			<DefaultFolderChoiceForm />
+			<AuxiliaryObjectForm />
+			<AuxiliaryFolderForm />
+			<AuxiliaryListForm />
+			<AuxiliaryChoiceForm />
+			<AuxiliaryFolderChoiceForm />
+			<IncludeHelpInContents>false</IncludeHelpInContents>
+			<BasedOn />
+			<DataLockFields />
+			<DataLockControlMode>Managed</DataLockControlMode>
+			<FullTextSearch>Use</FullTextSearch>
+			<ObjectPresentation />
+			<ExtendedObjectPresentation />
+			<ListPresentation />
+			<ExtendedListPresentation />
+			<Explanation />
+			<CreateOnInput>Use</CreateOnInput>
+			<ChoiceHistoryOnInput>Auto</ChoiceHistoryOnInput>
+			<DataHistory>DontUse</DataHistory>
+			<UpdateDataHistoryImmediatelyAfterWrite
+            >false</UpdateDataHistoryImmediatelyAfterWrite>
+			<ExecuteAfterWriteDataHistoryVersionProcessing
+            >false</ExecuteAfterWriteDataHistoryVersionProcessing>
+		</Properties>
+		<ChildObjects />
+	</Catalog>
+</MetaDataObject>

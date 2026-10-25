@@ -1,3 +1,5 @@
+"""CLI команды библиотеки."""
+
 import typer
 
 from onec import __version__
@@ -12,5 +14,5 @@ def main() -> None:
 
 @app.command()
 def version() -> None:
-    """Выводит версию библиотеки"""
+    """Выводит версию библиотеки."""
     typer.echo(__version__)

@@ -1,3 +1,5 @@
+"""Записывает XML в формате выгрузки Конфигуратора 1С."""
+
 from pathlib import Path
 
 from lxml import etree
@@ -15,8 +17,8 @@ def write_1c_to_xml(root: etree._Element, path: Path) -> None:
     Args:
         root: Корневой элемент конфигурации.
         path: Путь к файлу. Недостающие папки будут созданы.
-    """
 
+    """
     etree.indent(root, space="\t")
     body = etree.tostring(root, encoding="unicode")
     text = (_DECLARATION + body).replace("\r\n", "\n").replace("\n", "\r\n")
