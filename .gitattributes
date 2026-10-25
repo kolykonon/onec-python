@@ -8,3 +8,5 @@
 
 *.bsl             -text
 tests/golden/**   -text
+
+src/onec/xml/templates/**   -text
