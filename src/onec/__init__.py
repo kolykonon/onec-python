@@ -1,7 +1,14 @@
-"""Описание конфигураций 1С:Предприятие на Python."""
-
 from importlib.metadata import version
+
+from onec.xml.dump import dump
+from onec.xml.model import Configuration, Language, LocalString
 
 __version__ = version("onec-py")
 
-__all__ = ["__version__"]
+__all__ = [
+    "Configuration",
+    "Language",
+    "LocalString",
+    "__version__",
+    "dump",
+]
