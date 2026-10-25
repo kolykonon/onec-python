@@ -1,0 +1,123 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "onec-py"
+version = "0.1.0"
+description = "Описание конфигураций 1С:Предприятие на Python"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Николай Кононыхин", email = "kononikhinnikolay@gmail.com" },
+]
+keywords = ["1c", "1c-enterprise", "code-generation", "metadata"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Code Generators",
+  "Typing :: Typed",
+]
+dependencies = ["lxml>=6.1.3", "typer>=0.27.3"]
+
+[project.scripts]
+onec = "onec.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/kolykonon/onec-python"
+Issues = "https://github.com/kolykonon/onec-python/issues"
+
+[dependency-groups]
+dev = [
+  "lxml-stubs>=0.5.1",
+  "mypy>=2.4.0",
+  "pre-commit>=4.6.2",
+  "pytest>=9.1.1",
+  "pytest-cov>=7.1.0",
+  "ruff>=0.17.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/onec"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["tests/golden", ".claude", ".github"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+extend-exclude = ["tests/golden"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle: ошибки стиля
+  "W",   # pycodestyle: предупреждения
+  "F",   # pyflakes: неиспользуемые импорты, переменные и т.п.
+  "I",   # isort: сортировка импортов
+  "B",   # flake8-bugbear: типичные баги
+  "UP",  # pyupgrade: современный синтаксис Python
+  "SIM", # упрощение конструкций
+  "C4",  # генераторы и включения
+  "PTH", # pathlib вместо os.path
+  "RET", # лишние return/else
+  "RUF", # правила самого ruff
+]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["onec"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src", "tests"]
+strict = true
+warn_unreachable = true
+pretty = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+  "--import-mode=importlib",
+]
+markers = ["platform: тесты, требующие установленной платформы 1С"]
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["onec"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@overload",
+  "\\.\\.\\.",
+]

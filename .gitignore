@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Окружение
+.venv/
+.env
+
+# Инструменты
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Документация
+site/
+
+# IDE
+.idea/
+.vscode/
+
+# 1С: временные базы и выгрузки из тестов
+*.1CD
+*.cf
+tmp_ib/
+out/
