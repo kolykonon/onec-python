@@ -148,6 +148,8 @@ def build_configuration(cfg: Configuration) -> etree._Element:
     children.clear()
     for lang in cfg.languages:
         etree.SubElement(children, md("Language")).text = lang.name
+    for catalog in cfg.catalogs:
+        etree.SubElement(children, md("Catalog")).text = catalog.name
     return root
 
 

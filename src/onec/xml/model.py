@@ -9,8 +9,9 @@ import enum
 import re
 import uuid
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Self
+from typing import Self, SupportsIndex, overload
 
 _NAME_RE = re.compile(r"^[^\W\d]\w*$")
 
@@ -158,10 +159,7 @@ class Configuration:
         _validate_name(self.name)
         if not self.languages:
             raise ValueError("В конфигурации должен быть хотя бы один язык")
-        cnt = Counter([catalog.name for catalog in self.catalogs])
-        for key, val in cnt.items():
-            if val > 1:
-                raise ValueError(f"Найден справочник с повторяющимся именем: {key}")
+        self.catalogs = CatalogList(self.catalogs)
 
     @property
     def main_language(self) -> Language:
@@ -224,3 +222,84 @@ class Catalog:
             raise ValueError("Длина кода не может быть меньше 1")
         if self.description_length < 1:
             raise ValueError("Длина наименования не может быть меньше 1")
+
+
+def _check_unique_catalogs(catalogs: Iterable[Catalog]) -> None:
+    """Проверяет, что имена справочников не повторяются.
+
+    Args:
+        catalogs: Проверяемые справочники.
+
+    Raises:
+        ValueError: Если два справочника имеют одинаковое имя.
+
+    """
+    cnt = Counter(catalog.name for catalog in catalogs)
+    for key, val in cnt.items():
+        if val > 1:
+            raise ValueError(f"Найден справочник с повторяющимся именем: {key}")
+
+
+class CatalogList(list[Catalog]):
+    """Список справочников, не допускающий повторяющихся имён.
+
+    Проверка выполняется при создании списка и при каждом изменении:
+    ``append``, ``insert``, ``extend``, ``+=`` и присваивании по индексу.
+    При ошибке список не изменяется.
+
+    Example:
+        >>> catalogs = CatalogList([Catalog("Товары")])
+        >>> catalogs.append(Catalog("Товары"))
+        Traceback (most recent call last):
+        ...
+        ValueError: Найден справочник с повторяющимся именем: Товары
+
+    """
+
+    def __init__(self, catalogs: Iterable[Catalog] = ()) -> None:
+        """Создаёт список и проверяет уникальность имён."""
+        items = list(catalogs)
+        _check_unique_catalogs(items)
+        super().__init__(items)
+
+    def append(self, catalog: Catalog) -> None:
+        """Добавляет справочник в конец списка."""
+        _check_unique_catalogs([*self, catalog])
+        super().append(catalog)
+
+    def insert(self, index: SupportsIndex, catalog: Catalog) -> None:
+        """Вставляет справочник перед позицией ``index``."""
+        _check_unique_catalogs([*self, catalog])
+        super().insert(index, catalog)
+
+    def extend(self, catalogs: Iterable[Catalog]) -> None:
+        """Добавляет несколько справочников в конец списка."""
+        items = list(catalogs)
+        _check_unique_catalogs([*self, *items])
+        super().extend(items)
+
+    def __iadd__(self, catalogs: Iterable[Catalog]) -> Self:  # type: ignore[override, misc]
+        """Добавляет справочники оператором ``+=``."""
+        self.extend(catalogs)
+        return self
+
+    @overload
+    def __setitem__(self, index: SupportsIndex, value: Catalog) -> None: ...
+
+    @overload
+    def __setitem__(self, index: slice, value: Iterable[Catalog]) -> None: ...
+
+    def __setitem__(self, index: SupportsIndex | slice, value: Catalog | Iterable[Catalog]) -> None:
+        """Заменяет справочник или срез справочников."""
+        candidate = list(self)
+        if isinstance(index, slice):
+            assert not isinstance(value, Catalog)
+            value = list(value)
+            candidate[index] = value
+            _check_unique_catalogs(candidate)
+            super().__setitem__(index, value)
+        else:
+            assert isinstance(value, Catalog)
+            candidate[index] = value
+            _check_unique_catalogs(candidate)
+            super().__setitem__(index, value)
