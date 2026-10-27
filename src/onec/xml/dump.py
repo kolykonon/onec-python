@@ -2,19 +2,15 @@
 
 Раскладывает файлы так же, как команда «Выгрузить конфигурацию в файлы»
 в иерархическом формате: ``Configuration.xml`` в корне, объекты по папкам
-своих типов (``Languages/``, ``Catalogs/``).
+своих видов (``Languages/``, ``Catalogs/``).
 """
 
 from pathlib import Path
 
-from onec.xml.builders import (
-    build_catalog,
-    build_configuration,
-    build_dump_info,
-    build_language,
-)
-from onec.xml.model import Configuration
-from onec.xml.writer import write_1c_to_xml
+from onec.metadata import Configuration
+from onec.xml.builders import build_child_object, build_configuration, build_dump_info
+from onec.xml.constants import CONFIGURATION_FILE, DUMP_INFO_FILE
+from onec.xml.writer import write_xml
 
 
 def dump(cfg: Configuration, out_dir: Path) -> None:
@@ -34,9 +30,7 @@ def dump(cfg: Configuration, out_dir: Path) -> None:
         >>> dump(Configuration(name="Склад"), Path("./out"))  # doctest: +SKIP
 
     """
-    write_1c_to_xml(build_configuration(cfg), out_dir / "Configuration.xml")
-    write_1c_to_xml(build_dump_info(), out_dir / "ConfigDumpInfo.xml")
-    for lang in cfg.languages:
-        write_1c_to_xml(build_language(cfg, lang), out_dir / "Languages" / f"{lang.name}.xml")
-    for catalog in cfg.catalogs:
-        write_1c_to_xml(build_catalog(cfg, catalog), out_dir / "Catalogs" / f"{catalog.name}.xml")
+    write_xml(build_configuration(cfg), out_dir / CONFIGURATION_FILE)
+    write_xml(build_dump_info(), out_dir / DUMP_INFO_FILE)
+    for obj in cfg.child_objects():
+        write_xml(build_child_object(cfg, obj), out_dir / obj.FOLDER / f"{obj.name}.xml")

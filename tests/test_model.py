@@ -1,22 +1,23 @@
 import pytest
 
-from onec.xml.model import Catalog, CatalogList, Configuration
+from onec.metadata import Catalog, Configuration, Language, UniqueNameList
 
-DUPLICATE = "Найден справочник с повторяющимся именем"
+DUPLICATE = "Найден объект с повторяющимся именем"
 
 
 def names(catalogs: list[Catalog]) -> list[str]:
+    """Возвращает имена справочников по порядку."""
     return [catalog.name for catalog in catalogs]
 
 
-@pytest.fixture
-def cfg() -> Configuration:
-    return Configuration(name="Склад", catalogs=[Catalog("Товары"), Catalog("Склады")])
-
-
-def test_invalid_name_rejected() -> None:
+def test_invalid_catalog_name_rejected() -> None:
     with pytest.raises(ValueError, match="Недопустимое имя"):
         Catalog("1Товары")
+
+
+def test_invalid_configuration_name_rejected() -> None:
+    with pytest.raises(ValueError, match="Недопустимое имя"):
+        Configuration(name="1Склад")
 
 
 def test_code_length_must_be_positive() -> None:
@@ -37,13 +38,13 @@ def test_catalogs_are_empty_by_default() -> None:
     assert Configuration(name="Склад").catalogs == []
 
 
-def test_catalogs_converted_to_catalog_list(cfg: Configuration) -> None:
-    assert isinstance(cfg.catalogs, CatalogList)
+def test_catalogs_converted_to_unique_name_list(cfg: Configuration) -> None:
+    assert isinstance(cfg.catalogs, UniqueNameList)
     assert names(cfg.catalogs) == ["Товары", "Склады"]
 
 
 def test_duplicates_rejected_in_constructor() -> None:
-    with pytest.raises(ValueError, match=f"{DUPLICATE}: Товары"):
+    with pytest.raises(ValueError, match=f"{DUPLICATE}: 'Товары'"):
         Configuration(name="Склад", catalogs=[Catalog("Товары"), Catalog("Товары")])
 
 
@@ -53,7 +54,7 @@ def test_append(cfg: Configuration) -> None:
 
 
 def test_append_duplicate_rejected(cfg: Configuration) -> None:
-    with pytest.raises(ValueError, match=f"{DUPLICATE}: Товары"):
+    with pytest.raises(ValueError, match=f"{DUPLICATE}: 'Товары'"):
         cfg.catalogs.append(Catalog("Товары", code_length=5))
     assert names(cfg.catalogs) == ["Товары", "Склады"]
 
@@ -80,7 +81,7 @@ def test_extend_duplicate_rejected(cfg: Configuration) -> None:
 
 
 def test_extend_with_duplicates_inside_rejected(cfg: Configuration) -> None:
-    with pytest.raises(ValueError, match=f"{DUPLICATE}: Контрагенты"):
+    with pytest.raises(ValueError, match=f"{DUPLICATE}: 'Контрагенты'"):
         cfg.catalogs.extend(Catalog("Контрагенты") for _ in range(2))
     assert names(cfg.catalogs) == ["Товары", "Склады"]
 
@@ -97,9 +98,9 @@ def test_iadd_duplicate_rejected(cfg: Configuration) -> None:
     assert names(cfg.catalogs) == ["Товары", "Склады"]
 
 
-def test_iadd_keeps_catalog_list(cfg: Configuration) -> None:
+def test_iadd_keeps_unique_name_list(cfg: Configuration) -> None:
     cfg.catalogs += [Catalog("Контрагенты")]
-    assert isinstance(cfg.catalogs, CatalogList)
+    assert isinstance(cfg.catalogs, UniqueNameList)
     assert names(cfg.catalogs) == ["Товары", "Склады", "Контрагенты"]
 
 
@@ -129,3 +130,19 @@ def test_name_freed_after_remove(cfg: Configuration) -> None:
     del cfg.catalogs[0]
     cfg.catalogs.append(Catalog("Товары"))
     assert names(cfg.catalogs) == ["Склады", "Товары"]
+
+
+def test_language_duplicates_rejected_in_constructor() -> None:
+    with pytest.raises(ValueError, match=f"{DUPLICATE}: 'Русский'"):
+        Configuration(name="Склад", languages=[Language(), Language()])
+
+
+def test_language_append_duplicate_rejected() -> None:
+    cfg = Configuration(name="Склад")
+    with pytest.raises(ValueError, match=f"{DUPLICATE}: 'Русский'"):
+        cfg.languages.append(Language())
+    assert len(cfg.languages) == 1
+
+
+def test_uuid_is_second_positional_argument(cfg: Configuration) -> None:
+    assert Configuration("Склад", cfg.uuid).uuid == cfg.uuid

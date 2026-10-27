@@ -1,34 +1,29 @@
-from __future__ import annotations
-
-import uuid
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from lxml import etree
 
+from onec.metadata import Catalog, CodeType, Configuration, LocalString
 from onec.xml.builders import build_catalog
-from onec.xml.model import Catalog, CodeType, Configuration, LocalString
 from onec.xml.ns import md, v8, xr
-from onec.xml.writer import write_1c_to_xml
+from onec.xml.writer import write_xml
 
-GOLDEN = Path(__file__).parent / "golden" / "8.3.27" / "catalog_empty"
 TEMPLATE_NAME = "ПустойСправочник"
 TEMPLATE_SYNONYM = "Пустой справочник"
 CATEGORIES = ("Object", "Ref", "Selection", "List", "Manager")
 
 
 @pytest.fixture
-def cfg() -> Configuration:
-    """Конфигурация с фиксированным UUID, чтобы результаты были воспроизводимы."""
-    return Configuration(name="Склад", uuid=uuid.UUID("12345678-1234-5678-1234-567812345678"))
+def render(tmp_path: Path, read_xml: Callable[[Path], str]) -> Callable[[etree._Element], str]:
+    """Функция, записывающая дерево в формате 1С и возвращающая текст файла."""
 
+    def _render(root: etree._Element) -> str:
+        path = tmp_path / "catalog.xml"
+        write_xml(root, path)
+        return read_xml(path)
 
-def render(root: etree._Element, tmp_path: Path) -> str:
-    """Записывает дерево в формате 1С и возвращает текст файла."""
-    path = tmp_path / "catalog.xml"
-    write_1c_to_xml(root, path)
-    return path.read_bytes().decode("utf-8")
+    return _render
 
 
 def catalog_node(root: etree._Element) -> etree._Element:
@@ -40,9 +35,9 @@ def catalog_node(root: etree._Element) -> etree._Element:
 
 def prop(root: etree._Element, name: str) -> etree._Element:
     """Возвращает свойство из блока ``Properties`` справочника."""
-    el = catalog_node(root).find(f"{md('Properties')}/{md(name)}")
-    assert el is not None, name
-    return el
+    element = catalog_node(root).find(f"{md('Properties')}/{md(name)}")
+    assert element is not None, name
+    return element
 
 
 def generated_types(root: etree._Element) -> list[etree._Element]:
@@ -50,46 +45,51 @@ def generated_types(root: etree._Element) -> list[etree._Element]:
     return catalog_node(root).findall(f"{md('InternalInfo')}/{xr('GeneratedType')}")
 
 
-def test_matches_golden(
-    cfg: Configuration, tmp_path: Path, normalize: Callable[[str], str]
+def test_catalog_matches_golden(
+    cfg: Configuration,
+    golden: Path,
+    render: Callable[[etree._Element], str],
+    normalize: Callable[[str], str],
+    read_xml: Callable[[Path], str],
 ) -> None:
     catalog = Catalog(TEMPLATE_NAME, synonym=LocalString.ru(TEMPLATE_SYNONYM))
-    actual = render(build_catalog(cfg, catalog), tmp_path)
-    expected = (GOLDEN / "Catalogs" / f"{TEMPLATE_NAME}.xml").read_bytes().decode("utf-8")
+    actual = render(build_catalog(cfg, catalog))
+    expected = read_xml(golden / "catalog_empty" / "Catalogs" / f"{TEMPLATE_NAME}.xml")
     assert normalize(actual) == normalize(expected)
 
 
-def test_no_template_leftovers(cfg: Configuration, tmp_path: Path) -> None:
+def test_no_template_leftovers(cfg: Configuration, render: Callable[[etree._Element], str]) -> None:
     catalog = Catalog("Товары", synonym=LocalString.ru("Товары на складе"))
-    text = render(build_catalog(cfg, catalog), tmp_path)
+    text = render(build_catalog(cfg, catalog))
     assert TEMPLATE_NAME not in text
     assert TEMPLATE_SYNONYM not in text
 
 
 def test_generated_type_names(cfg: Configuration) -> None:
     root = build_catalog(cfg, Catalog("Товары"))
-    names = [el.get("name") for el in generated_types(root)]
+    names = [generated.get("name") for generated in generated_types(root)]
     assert names == [f"Catalog{category}.Товары" for category in CATEGORIES]
 
 
 def test_all_uuids_are_unique(cfg: Configuration) -> None:
     root = build_catalog(cfg, Catalog("Товары"))
     ids = [catalog_node(root).get("uuid")]
-    for el in generated_types(root):
-        ids.append(el.findtext(xr("TypeId")))
-        ids.append(el.findtext(xr("ValueId")))
-    assert len(ids) == 11
-    assert len(set(ids)) == 11
+    for generated in generated_types(root):
+        ids.append(generated.findtext(xr("TypeId")))
+        ids.append(generated.findtext(xr("ValueId")))
+    # UUID справочника и пара TypeId/ValueId на каждый порождаемый тип
+    assert len(ids) == 1 + 2 * len(CATEGORIES)
+    assert len(set(ids)) == len(ids)
 
 
-def test_uuids_are_stable(cfg: Configuration, tmp_path: Path) -> None:
-    first = render(build_catalog(cfg, Catalog("Товары")), tmp_path)
-    second = render(build_catalog(cfg, Catalog("Товары")), tmp_path)
+def test_uuids_are_stable(cfg: Configuration, render: Callable[[etree._Element], str]) -> None:
+    first = render(build_catalog(cfg, Catalog("Товары")))
+    second = render(build_catalog(cfg, Catalog("Товары")))
     assert first == second
 
 
 def test_uuids_depend_on_configuration(cfg: Configuration) -> None:
-    other = Configuration(name="Склад", uuid=uuid.UUID("87654321-4321-8765-4321-876543218765"))
+    other = Configuration(name=cfg.name)
     first = catalog_node(build_catalog(cfg, Catalog("Товары"))).get("uuid")
     second = catalog_node(build_catalog(other, Catalog("Товары"))).get("uuid")
     assert first != second
@@ -124,7 +124,7 @@ def test_empty_comment_is_empty_tag(cfg: Configuration) -> None:
 
 def test_input_by_string_uses_catalog_name(cfg: Configuration) -> None:
     root = build_catalog(cfg, Catalog("Товары"))
-    fields = [el.text for el in prop(root, "InputByString").findall(xr("Field"))]
+    fields = [field.text for field in prop(root, "InputByString").findall(xr("Field"))]
     assert fields == [
         "Catalog.Товары.StandardAttribute.Description",
         "Catalog.Товары.StandardAttribute.Code",

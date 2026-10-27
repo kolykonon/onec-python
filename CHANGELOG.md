@@ -17,6 +17,8 @@
 - Справочники: класс `Catalog` и список `Configuration.catalogs`. Справочники
   выгружаются в `Catalogs/<Имя>.xml` и перечисляются в `ChildObjects`
   файла `Configuration.xml`.
-- Проверка уникальности имён справочников: `Configuration.catalogs` не
-  допускает дублей ни при создании конфигурации, ни при последующем
-  `append`/`insert`/`extend`/`+=`/присваивании по индексу.
+- Проверка уникальности имён: `Configuration.languages` и
+  `Configuration.catalogs` не допускают дублей ни при создании конфигурации,
+  ни при последующем `append`/`insert`/`extend`/`+=`/присваивании по индексу.
+- Модуль `onec.metadata` с классами объектов метаданных, включая базовые
+  `MetadataObject` и `ChildObject`.

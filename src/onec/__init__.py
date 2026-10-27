@@ -14,8 +14,8 @@ Example:
 
 from importlib.metadata import version
 
+from onec.metadata import Catalog, Configuration, Language, LocalString
 from onec.xml.dump import dump
-from onec.xml.model import Catalog, Configuration, Language, LocalString
 
 __version__ = version("onec-py")
 
