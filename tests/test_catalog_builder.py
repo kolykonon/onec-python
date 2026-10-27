@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from onec.metadata import Catalog, CodeType, Configuration, LocalString
+from onec import Catalog, Configuration, LocalString
+from onec.metadata.models.catalog import CodeType
 from onec.xml.builders import build_catalog
 from onec.xml.ns import md, v8, xr
 from onec.xml.writer import write_xml
