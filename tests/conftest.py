@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from onec.metadata import Catalog, Configuration, LocalString
+from onec import Catalog, Configuration, LocalString
 from onec.platform.version import PLATFORM_VERSION
 from onec.xml.constants import CONFIGURATION_CLASS_IDS
 
