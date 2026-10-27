@@ -1,27 +1,33 @@
 """Константы формата выгрузки конфигурации 1С.
 
 Пространства имён XML, версия формата и идентификаторы, одинаковые
-во всех конфигурациях. Значения получены из выгрузки платформы 8.3.27
-(версия формата 2.20).
+во всех конфигурациях. Значения получены из выгрузки платформы
+``onec.platform.version.PLATFORM_VERSION``.
 """
 
 from typing import Final
 
-# Версия формата выгрузки 1С
+# Версия формата выгрузки 1С для PLATFORM_VERSION
 FORMAT_VERSION: Final = "2.20"
 
-# Пространства имен из выгрузок 1С в виде констант для удобства
+# Формат выгрузки: иерархический, объекты разложены по папкам своих видов
+DUMP_FORMAT: Final = "Hierarchical"
+
+# Имена служебных файлов в корне выгрузки
+CONFIGURATION_FILE: Final = "Configuration.xml"
+DUMP_INFO_FILE: Final = "ConfigDumpInfo.xml"
+
+# Пространства имён из выгрузок 1С
 MD: Final = "http://v8.1c.ru/8.3/MDClasses"
 V8: Final = "http://v8.1c.ru/8.1/data/core"
 XR: Final = "http://v8.1c.ru/8.3/xcf/readable"
-DUMPINFO: Final = "http://v8.1c.ru/8.3/xcf/dumpinfo"
+DUMP_INFO: Final = "http://v8.1c.ru/8.3/xcf/dumpinfo"
 
 _XEN: Final = "http://v8.1c.ru/8.3/xcf/enums"
 _XS: Final = "http://www.w3.org/2001/XMLSchema"
 _XSI: Final = "http://www.w3.org/2001/XMLSchema-instance"
 
-
-# Словарь пространств имен Configuration.xml
+# Пространства имён файлов объектов метаданных (Configuration.xml, Languages/, Catalogs/, ...)
 MD_NSMAP: Final[dict[str | None, str]] = {
     None: MD,
     "app": "http://v8.1c.ru/8.2/managed-application/core",
@@ -35,23 +41,23 @@ MD_NSMAP: Final[dict[str | None, str]] = {
     "v8ui": "http://v8.1c.ru/8.1/data/ui",
     "web": "http://v8.1c.ru/8.1/data/ui/colors/web",
     "win": "http://v8.1c.ru/8.1/data/ui/colors/windows",
-    "xen": "http://v8.1c.ru/8.3/xcf/enums",
+    "xen": _XEN,
     "xpr": "http://v8.1c.ru/8.3/xcf/predef",
     "xr": XR,
-    "xs": "http://www.w3.org/2001/XMLSchema",
-    "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    "xs": _XS,
+    "xsi": _XSI,
 }
 
-# Словарь пространств имен ConfigurationDump.xml
-DUMPINFO_NSMAP: Final[dict[str | None, str]] = {
-    None: DUMPINFO,
+# Пространства имён файла ConfigDumpInfo.xml
+DUMP_INFO_NSMAP: Final[dict[str | None, str]] = {
+    None: DUMP_INFO,
     "xen": _XEN,
     "xs": _XS,
     "xsi": _XSI,
 }
 
-
-# UUID классов из выгрузок 1С, в отличие от ObjectID, они фиксированные
+# ClassId объектов, содержащихся в конфигурации. В отличие от ObjectId они
+# одинаковы во всех конфигурациях
 CONFIGURATION_CLASS_IDS: Final = (
     "9cd510cd-abfc-11d4-9434-004095e12fc7",
     "9fcd25a0-4822-11d4-9414-008048da11f9",

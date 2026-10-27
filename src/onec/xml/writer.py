@@ -1,21 +1,22 @@
-"""Записывает XML в формате выгрузки Конфигуратора 1С."""
+"""Запись XML-файлов в формате выгрузки Конфигуратора 1С."""
 
 from pathlib import Path
+from typing import Final
 
 from lxml import etree
 
-_DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>\n'
-_BOM = "\ufeff"
+_DECLARATION: Final = '<?xml version="1.0" encoding="UTF-8"?>\n'
+_BOM: Final = "\ufeff"
 
 
-def write_1c_to_xml(root: etree._Element, path: Path) -> None:
+def write_xml(root: etree._Element, path: Path) -> None:
     """Записывает XML в формате выгрузки Конфигуратора 1С.
 
     Формат: UTF-8 с BOM, переводы строк CRLF, отступы табуляцией,
     объявление XML с двойными кавычками, без перевода строки в конце.
 
     Args:
-        root: Корневой элемент конфигурации.
+        root: Корневой элемент файла.
         path: Путь к файлу. Недостающие папки будут созданы.
 
     """

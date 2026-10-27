@@ -2,6 +2,8 @@
 
 Для каждого вида объектов метаданных есть свой сборщик (``build_configuration``,
 ``build_language``, ``build_catalog``), возвращающий корневой элемент файла.
+``build_child_object`` выбирает сборщик по виду подчинённого объекта,
+``build_dump_info`` строит служебный файл ``ConfigDumpInfo.xml``.
 Сложные файлы строятся по шаблонам из реальной выгрузки, в которых
 переопределяются значения из модели.
 
@@ -15,34 +17,46 @@ from typing import Final
 
 from lxml import etree
 
+from onec.metadata import (
+    Catalog,
+    ChildObject,
+    Configuration,
+    Language,
+    LocalString,
+    MetadataObject,
+)
 from onec.xml.constants import (
     CONFIGURATION_CLASS_IDS,
-    DUMPINFO_NSMAP,
+    DUMP_FORMAT,
+    DUMP_INFO_NSMAP,
     FORMAT_VERSION,
     MD_NSMAP,
 )
-from onec.xml.model import Catalog, Configuration, Language, LocalString
-from onec.xml.ns import dumpinfo, md, v8, xr
+from onec.xml.ns import dump_info, md, prefixed, v8, xr
 
-_CATALOG_CATEGORY_SET: Final = {"Object", "Ref", "Selection", "List", "Manager"}
+# Категории порождаемых типов справочника в порядке из выгрузки 1С
+_CATALOG_GENERATED_CATEGORIES: Final = ("Object", "Ref", "Selection", "List", "Manager")
+
+# Идентификаторы, которые 1С выдаёт каждому порождаемому типу
+_GENERATED_TYPE_IDS: Final = ("TypeId", "ValueId")
 
 _INPUT_BY_STRING_FIELDS: Final = ("Description", "Code")
 
 
-def set_local_string(element: etree._Element, value: LocalString) -> None:
+def _set_local_string(element: etree._Element, value: LocalString) -> None:
     """Заменяет в элементе многоязычную строку.
 
     Для каждого языка меняется блок ``v8:item`` с ``v8:lang`` и ``v8:content``.
 
     Args:
         element: Элемент, например ``<Synonym/>``.
-        value: Многоязычная строка
+        value: Многоязычная строка.
 
     """
     element.clear()
-    for lang, text in value.items:
+    for code, text in value.items:
         item = etree.SubElement(element, v8("item"))
-        etree.SubElement(item, v8("lang")).text = lang
+        etree.SubElement(item, v8("lang")).text = code
         etree.SubElement(item, v8("content")).text = text
 
 
@@ -60,10 +74,10 @@ def _find(parent: etree._Element, path: str) -> etree._Element:
         ValueError: Если элемент не найден, то есть шаблон не соответствует ожиданиям.
 
     """
-    el = parent.find(path)
-    if el is None:
-        raise ValueError(f"В шаблоне не найден элемент {path}")
-    return el
+    element = parent.find(path)
+    if element is None:
+        raise ValueError(f"В шаблоне не найден элемент {prefixed(path)!r}")
+    return element
 
 
 def _set_property(props: etree._Element, name: str, value: str) -> None:
@@ -78,6 +92,19 @@ def _set_property(props: etree._Element, name: str, value: str) -> None:
 
     """
     _find(props, md(name)).text = value or None
+
+
+def _set_common_properties(props: etree._Element, obj: MetadataObject) -> None:
+    """Устанавливает свойства, общие для всех объектов: имя, синоним и комментарий.
+
+    Args:
+        props: Элемент ``Properties`` с тегами ``Name``, ``Synonym`` и ``Comment``.
+        obj: Объект метаданных.
+
+    """
+    _set_property(props, "Name", obj.name)
+    _set_property(props, "Comment", obj.comment)
+    _set_local_string(_find(props, md("Synonym")), obj.synonym)
 
 
 def _load_template(name: str) -> etree._Element:
@@ -97,7 +124,26 @@ def _load_template(name: str) -> etree._Element:
     return etree.fromstring(data, etree.XMLParser(remove_blank_text=True))
 
 
-def object_uuid(cfg: Configuration, key: str) -> uuid.UUID:
+def _load_object_template(
+    obj: MetadataObject, object_id: uuid.UUID
+) -> tuple[etree._Element, etree._Element]:
+    """Загружает шаблон ``<Вид>.xml`` объекта и задаёт UUID его узла.
+
+    Args:
+        obj: Объект метаданных, вид которого определяет шаблон.
+        object_id: UUID объекта.
+
+    Returns:
+        Корневой элемент ``MetaDataObject`` и узел объекта, например ``Catalog``.
+
+    """
+    root = _load_template(f"{obj.KIND}.xml")
+    node = _find(root, md(obj.KIND))
+    node.set("uuid", str(object_id))
+    return root, node
+
+
+def _object_uuid(cfg: Configuration, key: str) -> uuid.UUID:
     """Вычисляет UUID объекта внутри конфигурации.
 
     Один и тот же ключ в одной и той же конфигурации всегда даёт один и тот же
@@ -112,92 +158,6 @@ def object_uuid(cfg: Configuration, key: str) -> uuid.UUID:
 
     """
     return uuid.uuid5(cfg.uuid, key)
-
-
-def build_configuration(cfg: Configuration) -> etree._Element:
-    """Строит дерево файла ``Configuration.xml``.
-
-    Используется шаблон из выгрузки пустой конфигурации, в котором
-    переопределяются идентификаторы, имя, синоним и другие свойства из модели,
-    а также список подчинённых объектов.
-
-    Args:
-        cfg: Описание конфигурации.
-
-    Returns:
-        Корневой элемент ``MetaDataObject``.
-
-    """
-    root = _load_template("Configuration.xml")
-    node = _find(root, md("Configuration"))
-    node.set("uuid", str(cfg.uuid))
-
-    object_ids = node.findall(f"{md('InternalInfo')}/{xr('ContainedObject')}/{xr('ObjectId')}")
-    for el, class_id in zip(object_ids, CONFIGURATION_CLASS_IDS, strict=True):
-        el.text = str(object_uuid(cfg, class_id))
-
-    props = _find(node, md("Properties"))
-    _set_property(props, "Name", cfg.name)
-    _set_property(props, "Comment", cfg.comment)
-    _set_property(props, "CompatibilityMode", cfg.compatibility_mode)
-    _set_property(props, "ConfigurationExtensionCompatibilityMode", cfg.compatibility_mode)
-    _set_property(props, "DefaultLanguage", f"Language.{cfg.main_language.name}")
-    set_local_string(_find(props, md("Synonym")), cfg.synonym)
-
-    children = _find(node, md("ChildObjects"))
-    children.clear()
-    for lang in cfg.languages:
-        etree.SubElement(children, md("Language")).text = lang.name
-    for catalog in cfg.catalogs:
-        etree.SubElement(children, md("Catalog")).text = catalog.name
-    return root
-
-
-def build_language(cfg: Configuration, lang: Language) -> etree._Element:
-    """Строит дерево файла ``Languages/<Имя>.xml``.
-
-    Args:
-        cfg: Конфигурация, которой принадлежит язык (нужна для вычисления UUID).
-        lang: Описание языка.
-
-    Returns:
-        Корневой элемент ``MetaDataObject``.
-
-    """
-    root = etree.Element(
-        md("MetaDataObject"),
-        nsmap=MD_NSMAP,
-        version=FORMAT_VERSION,
-    )
-    node = etree.SubElement(
-        root, md("Language"), uuid=str(object_uuid(cfg, f"Language.{lang.name}"))
-    )
-    props = etree.SubElement(node, md("Properties"))
-    etree.SubElement(props, md("Name")).text = lang.name
-    set_local_string(etree.SubElement(props, md("Synonym")), lang.synonym)
-    etree.SubElement(props, md("Comment")).text = lang.comment or None
-    etree.SubElement(props, md("LanguageCode")).text = lang.code
-    return root
-
-
-def build_dump_info() -> etree._Element:
-    """Строит дерево служебного файла ``ConfigDumpInfo.xml``.
-
-    Пока список версий объектов всегда пустой: он используется Конфигуратором
-    для частичной выгрузки и при генерации не заполняется.
-
-    Returns:
-        Корневой элемент ``ConfigDumpInfo``.
-
-    """
-    root = etree.Element(
-        dumpinfo("ConfigDumpInfo"),
-        nsmap=DUMPINFO_NSMAP,
-        format="Hierarchical",
-        version=FORMAT_VERSION,
-    )
-    etree.SubElement(root, dumpinfo("ConfigVersions"))
-    return root
 
 
 def _set_input_by_string(props: etree._Element, catalog: Catalog) -> None:
@@ -215,58 +175,154 @@ def _set_input_by_string(props: etree._Element, catalog: Catalog) -> None:
     input_by_string = _find(props, md("InputByString"))
     input_by_string.clear()
     for attribute in _INPUT_BY_STRING_FIELDS:
-        etree.SubElement(
-            input_by_string, xr("Field")
-        ).text = f"{catalog.full_name}.StandardAttribute.{attribute}"
+        field_element = etree.SubElement(input_by_string, xr("Field"))
+        field_element.text = f"{catalog.full_name}.StandardAttribute.{attribute}"
+
+
+def build_configuration(cfg: Configuration) -> etree._Element:
+    """Строит дерево файла ``Configuration.xml``.
+
+    Используется шаблон из выгрузки пустой конфигурации, в котором
+    переопределяются идентификаторы, имя, синоним и другие свойства из модели,
+    а также список подчинённых объектов.
+
+    Args:
+        cfg: Описание конфигурации.
+
+    Returns:
+        Корневой элемент ``MetaDataObject``.
+
+    Raises:
+        ValueError: Если ClassId в шаблоне не совпадают с ожидаемыми.
+
+    """
+    root, node = _load_object_template(cfg, cfg.uuid)
+
+    contained_objects = node.findall(f"{md('InternalInfo')}/{xr('ContainedObject')}")
+    class_ids = tuple(_find(contained, xr("ClassId")).text for contained in contained_objects)
+    if class_ids != CONFIGURATION_CLASS_IDS:
+        raise ValueError(f"Неожиданные ClassId в шаблоне конфигурации: {class_ids}")
+    for contained, class_id in zip(contained_objects, CONFIGURATION_CLASS_IDS, strict=True):
+        _find(contained, xr("ObjectId")).text = str(_object_uuid(cfg, class_id))
+
+    props = _find(node, md("Properties"))
+    _set_common_properties(props, cfg)
+    _set_property(props, "CompatibilityMode", cfg.compatibility_mode)
+    # Отдельного режима для расширений в модели нет: 1С по умолчанию
+    # выставляет его равным режиму совместимости конфигурации
+    _set_property(props, "ConfigurationExtensionCompatibilityMode", cfg.compatibility_mode)
+    _set_property(props, "DefaultLanguage", cfg.main_language.full_name)
+
+    children = _find(node, md("ChildObjects"))
+    children.clear()
+    for child in cfg.child_objects():
+        etree.SubElement(children, md(child.KIND)).text = child.name
+    return root
+
+
+def build_language(cfg: Configuration, language: Language) -> etree._Element:
+    """Строит дерево файла ``Languages/<Имя>.xml``.
+
+    Args:
+        cfg: Конфигурация, которой принадлежит язык (нужна для вычисления UUID).
+        language: Описание языка.
+
+    Returns:
+        Корневой элемент ``MetaDataObject``.
+
+    """
+    root = etree.Element(md("MetaDataObject"), nsmap=MD_NSMAP, version=FORMAT_VERSION)
+    language_id = _object_uuid(cfg, language.full_name)
+    node = etree.SubElement(root, md(language.KIND), uuid=str(language_id))
+    props = etree.SubElement(node, md("Properties"))
+    for name in ("Name", "Synonym", "Comment", "LanguageCode"):
+        etree.SubElement(props, md(name))
+    _set_common_properties(props, language)
+    _set_property(props, "LanguageCode", language.code)
+    return root
+
+
+def build_dump_info() -> etree._Element:
+    """Строит дерево служебного файла ``ConfigDumpInfo.xml``.
+
+    Пока список версий объектов всегда пустой: он используется Конфигуратором
+    для частичной выгрузки и при генерации не заполняется.
+
+    Returns:
+        Корневой элемент ``ConfigDumpInfo``.
+
+    """
+    root = etree.Element(
+        dump_info("ConfigDumpInfo"),
+        nsmap=DUMP_INFO_NSMAP,
+        format=DUMP_FORMAT,
+        version=FORMAT_VERSION,
+    )
+    etree.SubElement(root, dump_info("ConfigVersions"))
+    return root
 
 
 def build_catalog(cfg: Configuration, catalog: Catalog) -> etree._Element:
-    """Строит дерево файла ``<Имя справочника>.xml``.
+    """Строит дерево файла ``Catalogs/<Имя>.xml``.
 
-    Использует шаблон из выгрузки пустого справочника в котором переопределяются параметры из модели
+    Используется шаблон из выгрузки пустого справочника, в котором
+    переопределяются свойства из модели.
 
     Args:
-        cfg: Объект конфигурации, uuid используется как пространство имён
-        catalog: Объект справочника, из которого берутся атрибуты
-
-    Raises:
-        ValueError: если найден неожиданный порождаемый тип или несоответствие ожидаемому количеству
+        cfg: Конфигурация, которой принадлежит справочник (нужна для вычисления UUID).
+        catalog: Описание справочника.
 
     Returns:
-        Корневой элемент ``MetaDataObject``
+        Корневой элемент ``MetaDataObject``.
+
+    Raises:
+        ValueError: Если порождаемые типы в шаблоне не совпадают с ожидаемыми.
 
     """
-    root = _load_template("Catalog.xml")
-    node = _find(root, md("Catalog"))
-    node.set("uuid", str(object_uuid(cfg, catalog.full_name)))
+    root, node = _load_object_template(catalog, _object_uuid(cfg, catalog.full_name))
 
-    objects = node.findall(f"{md('InternalInfo')}/{xr('GeneratedType')}")
-
-    if len(objects) != len(_CATALOG_CATEGORY_SET):
+    generated_types = node.findall(f"{md('InternalInfo')}/{xr('GeneratedType')}")
+    categories = tuple(generated.get("category") for generated in generated_types)
+    if categories != _CATALOG_GENERATED_CATEGORIES:
         raise ValueError(
-            f"Ожидалось {len(_CATALOG_CATEGORY_SET)} порождаемых типов, найдено: {len(objects)}"
+            f"Ожидались категории порождаемых типов {_CATALOG_GENERATED_CATEGORIES}, "
+            f"в шаблоне: {categories}"
         )
 
-    for generated in objects:
-        category = generated.get("category")
-        if not category:
-            raise ValueError("Категория не найдена")
-        if category not in _CATALOG_CATEGORY_SET:
-            raise ValueError(f"Неожиданная категория порождаемых типов {category}")
-        generated.set("name", f"Catalog{category}.{catalog.name}")
-        uuid_key = f"{catalog.full_name}.{category}"
-        _find(generated, xr("TypeId")).text = str(object_uuid(cfg, f"{uuid_key}.TypeId"))
-        _find(generated, xr("ValueId")).text = str(object_uuid(cfg, f"{uuid_key}.ValueId"))
-    props = _find(node, md("Properties"))
+    for generated, category in zip(generated_types, _CATALOG_GENERATED_CATEGORIES, strict=True):
+        generated.set("name", f"{catalog.KIND}{category}.{catalog.name}")
+        for id_tag in _GENERATED_TYPE_IDS:
+            key = f"{catalog.full_name}.{category}.{id_tag}"
+            _find(generated, xr(id_tag)).text = str(_object_uuid(cfg, key))
 
-    _set_property(props, "Name", catalog.name)
-    _set_property(props, "Comment", catalog.comment)
+    props = _find(node, md("Properties"))
+    _set_common_properties(props, catalog)
     _set_property(props, "CodeType", catalog.code_type.value)
     _set_property(props, "CodeLength", str(catalog.code_length))
     _set_property(props, "DescriptionLength", str(catalog.description_length))
-
-    set_local_string(_find(props, md("Synonym")), catalog.synonym)
     _set_input_by_string(props, catalog)
-    children = _find(node, md("ChildObjects"))
-    children.clear()
+
+    _find(node, md("ChildObjects")).clear()
     return root
+
+
+def build_child_object(cfg: Configuration, obj: ChildObject) -> etree._Element:
+    """Строит дерево файла подчинённого объекта ``<Папка>/<Имя>.xml``.
+
+    Args:
+        cfg: Конфигурация, которой принадлежит объект.
+        obj: Подчинённый объект конфигурации.
+
+    Returns:
+        Корневой элемент ``MetaDataObject``.
+
+    Raises:
+        TypeError: Если для вида объекта нет сборщика.
+
+    """
+    match obj:
+        case Language():
+            return build_language(cfg, obj)
+        case Catalog():
+            return build_catalog(cfg, obj)
+    raise TypeError(f"Нет сборщика для объекта вида {obj.KIND!r}")
